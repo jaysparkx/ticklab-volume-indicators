@@ -44,14 +44,13 @@ def process_symbol(symbol, start_time, end_time):
 
 def plot_cvd_and_price(df, symbol, output_dir):
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
-    
-    # Plot price
+ 
     ax1.plot(df['timestamp'], df['price'], color='blue')
     ax1.set_title(f'Price and CVD for {symbol}')
     ax1.set_ylabel('Price')
     ax1.grid(True)
     
-    # Plot CVD
+ 
     ax2.plot(df['timestamp'], df['cvd'], color='green')
     ax2.set_xlabel('Date')
     ax2.set_ylabel('CVD')
@@ -60,7 +59,7 @@ def plot_cvd_and_price(df, symbol, output_dir):
     plt.xticks(rotation=45)
     plt.tight_layout()
     
-    # Save the plot
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     plt.savefig(os.path.join(output_dir, f'{symbol}_price_cvd_plot.png'))
@@ -79,7 +78,7 @@ def main(symbols, duration_hours=24, output_dir='output'):
     return all_data
 
 if __name__ == "__main__":
-    symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT']  # Add or remove symbols as needed
+    symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT']  
     result_df = main(symbols)
     print(f"Plots saved in the 'output' directory.")
     print(result_df.head())
