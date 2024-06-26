@@ -2,13 +2,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from binance.client import Client
-import ray
 import os
-import docker
+import docker 
+
 
 client = Client(docker.api_keys, docker.api_secret)
 
-@ray.remote
 def fetch_trades(symbol, start_time, end_time):
     trades = []
     while start_time < end_time:
@@ -37,51 +36,50 @@ def calculate_cvd(trades):
     return pd.DataFrame(cvd_data)
 
 def process_symbol(symbol, start_time, end_time):
-    trades = ray.get(fetch_trades.remote(symbol, start_time, end_time))
+    print(f"Processing {symbol}...")
+    trades = fetch_trades(symbol, start_time, end_time)
     df = calculate_cvd(trades)
     df['symbol'] = symbol
     return df
 
-def plot_cvd(df, symbol, output_dir):
-    plt.figure(figsize=(12, 6))
-    plt.plot(df['timestamp'], df['cvd'])
-    plt.title(f'Cumulative Volume Delta (CVD) for {symbol}')
-    plt.xlabel('Date')
-    plt.ylabel('CVD')
+def plot_cvd_and_price(df, symbol, output_dir):
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+    
+    # Plot price
+    ax1.plot(df['timestamp'], df['price'], color='blue')
+    ax1.set_title(f'Price and CVD for {symbol}')
+    ax1.set_ylabel('Price')
+    ax1.grid(True)
+    
+    # Plot CVD
+    ax2.plot(df['timestamp'], df['cvd'], color='green')
+    ax2.set_xlabel('Date')
+    ax2.set_ylabel('CVD')
+    ax2.grid(True)
+    
     plt.xticks(rotation=45)
     plt.tight_layout()
     
+    # Save the plot
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    plt.savefig(os.path.join(output_dir, f'{symbol}_cvd_plot.png'))
+    plt.savefig(os.path.join(output_dir, f'{symbol}_price_cvd_plot.png'))
     plt.close()
 
 def main(symbols, duration_hours=24, output_dir='output'):
-    ray.init()
-    
     end_time = int(datetime.now().timestamp() * 1000)
     start_time = int((datetime.now() - timedelta(hours=duration_hours)).timestamp() * 1000)
     
-    results = []
+    all_data = pd.DataFrame()
     for symbol in symbols:
-        results.append(process_symbol(symbol, start_time, end_time))
+        symbol_data = process_symbol(symbol, start_time, end_time)
+        all_data = pd.concat([all_data, symbol_data], ignore_index=True)
+        plot_cvd_and_price(symbol_data, symbol, output_dir)
     
-    all_data = pd.concat(results, ignore_index=True)
-    
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    all_data.to_csv(os.path.join(output_dir, 'cvd_data.csv'), index=False)
-    
-    for symbol in symbols:
-        symbol_data = all_data[all_data['symbol'] == symbol]
-        plot_cvd(symbol_data, symbol, output_dir)
-    
-    ray.shutdown()
     return all_data
 
 if __name__ == "__main__":
-    symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT']  
+    symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT']  # Add or remove symbols as needed
     result_df = main(symbols)
+    print(f"Plots saved in the 'output' directory.")
     print(result_df.head())
-    print(f"Data and plots saved in the 'output' directory.")
